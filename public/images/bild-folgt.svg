@@ -1,6 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200" role="img" aria-labelledby="title">
-  <title id="title">Bild folgt</title>
-  <rect width="1200" height="1200" fill="#efede7"/>
-  <path d="M120 120h960v960H120z" fill="none" stroke="#d8d3c9" stroke-width="2"/>
-  <text x="600" y="620" fill="#263b33" font-family="Georgia,serif" font-size="54" text-anchor="middle">Bild folgt</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000" role="img" aria-labelledby="title">
+  <title id="title">Produktfoto folgt</title>
+  <rect width="800" height="1000" fill="#e8e4dc"/>
+  <path d="M34 34h732v932H34z" fill="none" stroke="#d3cec3"/>
+  <g fill="none" stroke="#8c948c" stroke-linecap="round" stroke-linejoin="round" stroke-width="3">
+    <path d="m400 340 66 66-66 66-66-66z"/>
+    <path d="m400 340v132m-66-66h132m-132 0 66-66 66 66-66 66-66-66z"/>
+  </g>
+  <path d="M286 532h228" stroke="#aa906c" stroke-width="2"/>
+  <text x="400" y="582" fill="#263b33" font-family="Arial,sans-serif" font-size="16" letter-spacing="3" text-anchor="middle">FOTOGRAFIE</text>
+  <text x="400" y="628" fill="#263b33" font-family="Georgia,serif" font-size="34" text-anchor="middle">folgt</text>
 </svg>

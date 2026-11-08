@@ -45,12 +45,12 @@ function writeStorage<T>(key: string, value: T) {
 }
 
 const demoImageByProduct: Record<string, string> = {
-  'rauchquarz-spitze': '/images/smoky-quartz.webp',
-  'amethyst-druse': '/images/amethyst-geode.webp',
-  'bergkristall-anhänger': '/images/rock-crystal-pendant.webp',
-  'turmalin-armband': '/images/tourmaline-bracelet.webp',
-  'fluorit-objekt': '/images/fluorite-specimen.jpg',
-  'stein-schale': '/images/onyx-bowl.jpg',
+  'rauchquarz-spitze': '/images/smoky-quartz-editorial.webp',
+  'amethyst-druse': '/images/amethyst-geode-editorial.webp',
+  'bergkristall-anhänger': '/images/bild-folgt.svg',
+  'turmalin-armband': '/images/bild-folgt.svg',
+  'fluorit-objekt': '/images/bild-folgt.svg',
+  'stein-schale': '/images/onyx-bowl-editorial.webp',
   'edelweiss-anstecker': '/images/bild-folgt.svg',
   'achat-trommelstein': '/images/bild-folgt.svg',
 }
@@ -58,12 +58,14 @@ const demoImageByProduct: Record<string, string> = {
 const legacyImageReferences: Record<string, string[]> = {
   'rauchquarz-spitze': [
     '/images/smoky-quartz.png',
+    '/images/smoky-quartz.webp',
     'photo-1600210492486-724fe5c67fb0',
   ],
-  'amethyst-druse': ['/images/amethyst-flower.jpg', 'pomegranate', 'granatapfel'],
-  'bergkristall-anhänger': ['photo-1611652022419-a9419f74343d'],
-  'turmalin-armband': ['photo-1617038220319-276d3cfab638'],
-  'stein-schale': ['photo-1600210492486-724fe5c67fb0'],
+  'amethyst-druse': ['/images/amethyst-geode.webp', '/images/amethyst-flower.jpg', 'pomegranate', 'granatapfel'],
+  'bergkristall-anhänger': ['/images/rock-crystal-pendant.webp', 'photo-1611652022419-a9419f74343d'],
+  'turmalin-armband': ['/images/tourmaline-bracelet.webp', 'photo-1617038220319-276d3cfab638'],
+  'fluorit-objekt': ['/images/fluorite-specimen.jpg'],
+  'stein-schale': ['/images/onyx-bowl.jpg', 'photo-1600210492486-724fe5c67fb0'],
   'edelweiss-anstecker': ['photo-1551524164-687a55dd1126'],
   'achat-trommelstein': ['photo-1615485925600-97237c4fc1ec'],
 }
@@ -89,12 +91,12 @@ function migrateLegacyDemoProduct(product: Product): Product {
     && !(image === '/images/bild-folgt.svg' && demoImage !== '/images/bild-folgt.svg'),
   )
   const primaryNeedsMigration = isLegacyImage(product, product.image)
-    || product.image === '/images/bild-folgt.svg'
-    || (product.id === 'rauchquarz-spitze' && product.image === '/images/smoky-quartz.png')
-  const customImage = images.find((image) => image !== demoImage)
-  const image = primaryNeedsMigration
-    ? customImage ?? images[0] ?? demoImage
-    : product.image
+    || (
+      product.image === '/images/bild-folgt.svg'
+      && product.imageIsIllustrative !== false
+      && demoImage !== '/images/bild-folgt.svg'
+    )
+  const image = primaryNeedsMigration ? demoImage : product.image
   const imageIsIllustrative = image === demoImage
     ? demoImage !== '/images/bild-folgt.svg'
     : image !== product.image

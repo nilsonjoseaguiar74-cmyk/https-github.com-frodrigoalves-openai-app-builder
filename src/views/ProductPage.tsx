@@ -3,6 +3,8 @@ import { ArrowLeft, ArrowRight, Check, Minus, Plus, ZoomIn } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { Breadcrumbs, euro, ProductCard, Storefront, categorySlug } from '../components/Storefront'
+import { Carousel } from '../components/Carousel'
+import { orderedProductImages } from '../productImages'
 
 export function ProductPage() {
   const { productId } = useParams({ from: '/produkt/$productId' })
@@ -10,9 +12,9 @@ export function ProductPage() {
   const product = products.find((item) => item.id === productId)
   const [quantity, setQuantity] = useState(1)
   const [zoomOpen, setZoomOpen] = useState(false)
-  const [selectedImage, setSelectedImage] = useState('')
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   useEffect(() => {
-    setSelectedImage(product?.image ?? '')
+    setSelectedImageIndex(0)
     setQuantity(1)
   }, [product?.id, product?.image])
   if (!product) {
@@ -20,8 +22,9 @@ export function ProductPage() {
   }
   const related = products.filter((item) => item.category === product.category && item.id !== product.id && item.published && !item.archived).slice(0, 4)
   const available = product.quantity > 0 && product.published && !product.archived
-  const imageList = [...new Set([product.image, ...(product.images ?? [])])]
-  const activeImage = imageList.includes(selectedImage) ? selectedImage : imageList[0]
+  const savedImages = orderedProductImages(product)
+  const imageList = savedImages.length ? savedImages : [product.image]
+  const activeImage = imageList[Math.min(selectedImageIndex, imageList.length - 1)] ?? product.image
   const imageFollows = activeImage === '/images/bild-folgt.svg'
 
   return (
@@ -30,13 +33,23 @@ export function ProductPage() {
         <Breadcrumbs items={[{ label: product.category, to: '/shop/$category', category: categorySlug[product.category] }, { label: product.name }]} />
         <div className="product-detail">
           <div className="product-gallery">
-            <button className="gallery-main" onClick={() => setZoomOpen(true)} aria-label={imageFollows ? 'Produktbild folgt' : 'Produktbild vergrößern'} disabled={imageFollows}>
-              <img src={activeImage} alt={imageFollows ? 'Bild folgt' : product.name} />
-              {!imageFollows && <span className="zoom-hint"><ZoomIn size={17} /> Vergrößern</span>}
-            </button>
+            <Carousel
+              className="carousel-gallery"
+              label={`Bilder von ${product.name}`}
+              activeIndex={Math.min(selectedImageIndex, imageList.length - 1)}
+              onActiveIndexChange={setSelectedImageIndex}
+              showIndicators={false}
+            >
+              {imageList.map((image, index) => (
+                <button key={`${image}-${index}`} className="gallery-main" onClick={() => setZoomOpen(true)} aria-label={image === '/images/bild-folgt.svg' ? 'Produktbild folgt' : `Produktbild ${index + 1} vergrößern`} disabled={image === '/images/bild-folgt.svg'}>
+                  <img src={image} alt={image === '/images/bild-folgt.svg' ? 'Bild folgt' : `${product.name}, Ansicht ${index + 1}`} loading={index === 0 ? 'eager' : 'lazy'} />
+                  {image !== '/images/bild-folgt.svg' && <span className="zoom-hint"><ZoomIn size={17} /> Vergrößern</span>}
+                </button>
+              ))}
+            </Carousel>
             {product.imageIsIllustrative && <p className="illustrative-caption">Beispielabbildung. Das verfügbare Stück kann abweichen.</p>}
             {imageList.length > 1 && <div className="gallery-thumbs">
-              {imageList.map((image, index) => <button key={`${image}-${index}`} className={`gallery-thumb ${activeImage === image ? 'gallery-thumb-active' : ''}`} onClick={() => setSelectedImage(image)} aria-label={`Ansicht ${index + 1} anzeigen`} aria-pressed={activeImage === image}><img src={image} alt="" /></button>)}
+              {imageList.map((image, index) => <button key={`${image}-${index}`} className={`gallery-thumb ${selectedImageIndex === index ? 'gallery-thumb-active' : ''}`} onClick={() => setSelectedImageIndex(index)} aria-label={`Ansicht ${index + 1} anzeigen`} aria-pressed={selectedImageIndex === index}><img src={image} alt="" loading="lazy" /></button>)}
             </div>}
           </div>
           <div className="product-detail-copy">

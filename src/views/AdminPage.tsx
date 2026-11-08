@@ -1,9 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import {
-  ArrowDownToLine, ArrowLeft, ArrowUpRight, Boxes, ChartNoAxesColumnIncreasing, Download,
+  ArrowDown, ArrowDownToLine, ArrowLeft, ArrowUp, ArrowUpRight, Boxes, ChartNoAxesColumnIncreasing, Download,
   Check, ChevronDown, CircleAlert, Copy, ImagePlus, LayoutDashboard, LogOut,
   Menu, MoreHorizontal, Pencil, Plus, Search, Settings2, ShieldCheck,
-  ShoppingBasket, ShoppingCart, Tag, Trash2, Truck, Users, X,
+  ShoppingBasket, ShoppingCart, Star, Tag, Trash2, Truck, Users, X,
 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
@@ -12,6 +12,8 @@ import { useStore } from '../store'
 import type { Availability, Category, Product, StockMovement } from '../types'
 import { euro } from '../components/Storefront'
 import { demoSessionKey } from '../demoSession'
+import { orderedProductImages } from '../productImages'
+import { readSiteContent, saveSiteContent } from '../siteContent'
 
 const adminSections = [
   { slug: 'übersicht', label: 'Übersicht', icon: LayoutDashboard },
@@ -33,14 +35,21 @@ const isAvailability = (value: string): value is Availability =>
 const maxStoredImageChars = 1_800_000
 
 function storedImageChars(product: Product) {
-  const imageListChars = (product.images ?? []).reduce((total, image) => total + image.length, 0)
-  return imageListChars + (product.image.startsWith('data:image/') ? product.image.length : 0)
+  return [...new Set([product.image, ...(product.images ?? [])])]
+    .reduce((total, image) => total + (image.startsWith('data:image/') ? image.length : 0), 0)
 }
 
 function stockState(product: Product): Availability {
   if (product.quantity > 0) return 'Auf Lager'
   return product.availability === 'In Anlieferung' ? 'In Anlieferung' : 'Nicht verfügbar'
 }
+
+const demoOrders = [
+  { id: 'MW-2026-0042', customer: 'Anna Leitner', date: '06.11.2026', amount: '€ 148,00', status: 'In Bearbeitung' },
+  { id: 'MW-2026-0041', customer: 'Markus Gruber', date: '04.11.2026', amount: '€ 220,00', status: 'Versendet' },
+  { id: 'MW-2026-0040', customer: 'Clara Huber', date: '02.11.2026', amount: '€ 96,00', status: 'Abgeschlossen' },
+  { id: 'MW-2026-0039', customer: 'Lukas Steiner', date: '31.10.2026', amount: '€ 285,00', status: 'Abgeschlossen' },
+]
 
 export function AdminPage({ section }: { section: string }) {
   const [activeSection, setActiveSection] = useState(section.toLocaleLowerCase('de-AT'))
@@ -49,7 +58,7 @@ export function AdminPage({ section }: { section: string }) {
   const [formMode, setFormMode] = useState<'new' | 'edit' | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const currentSection = adminSections.find((item) => item.slug === activeSection) ?? adminSections[0]
-  const { products, cart } = useStore()
+  const { products } = useStore()
   const navigate = useNavigate()
   useEffect(() => setActiveSection(section.toLocaleLowerCase('de-AT')), [section])
 
@@ -96,18 +105,18 @@ export function AdminPage({ section }: { section: string }) {
         <main className="admin-content">
           <div className="admin-page-heading">
             <div><span className="eyebrow">STEINPLATTE · VERWALTUNG</span><h1>{currentSection.label}<em>.</em></h1></div>
-            <div className="admin-heading-actions"><span className="admin-date">{new Intl.DateTimeFormat('de-AT', { dateStyle: 'long' }).format(new Date())}</span>{currentSection.slug === 'produkte' && <button className="button button-dark" onClick={openNew}><Plus size={17} /> Neues Produkt</button>}</div>
+            <div className="admin-heading-actions"><span className="admin-date">{new Intl.DateTimeFormat('de-AT', { dateStyle: 'long' }).format(new Date())}</span></div>
           </div>
           {activeSection === 'übersicht' && <Overview products={products} onNavigate={navigateToSection} />}
           {activeSection === 'produkte' && <ProductsSection products={products} onNew={openNew} onEdit={openEdit} notify={notify} />}
           {activeSection === 'kategorien' && <CategoriesSection products={products} />}
           {activeSection === 'lagerbestand' && <InventorySection products={products} notify={notify} />}
           {activeSection === 'wareneingang' && <ReceivingSection products={products} notify={notify} />}
-          {activeSection === 'bestellungen' && <OrdersSection count={cart.length} />}
+          {activeSection === 'bestellungen' && <OrdersSection />}
           {activeSection === 'kunden' && <CustomersSection />}
           {activeSection === 'medien' && <MediaSection products={products} />}
           {activeSection === 'website-inhalte' && <ContentSection notify={notify} />}
-          {activeSection === 'einstellungen' && <SettingsSection notify={notify} />}
+          {activeSection === 'einstellungen' && <SettingsSection />}
           {activeSection === 'benutzer' && <UsersSection />}
         </main>
       </div>
@@ -127,7 +136,7 @@ function Overview({ products, onNavigate }: { products: Product[]; onNavigate: (
       <div className="admin-stats-grid">
         <StatCard label="Aktive Produkte" value={active.filter((p) => p.published).length.toString()} note={`${active.length} insgesamt`} icon={<Tag size={18} />} />
         <StatCard label="Stück auf Lager" value={stockCount.toString()} note="Über alle Produkte" icon={<Boxes size={18} />} />
-        <StatCard label="Bestellungen" value="12" note="Im Demo-Zeitraum" icon={<ShoppingCart size={18} />} trend="+ 3 diese Woche" />
+        <StatCard label="Bestellungen (Demo)" value={demoOrders.length.toString()} note="Beispieleinträge" icon={<ShoppingCart size={18} />} />
         <StatCard label="Lagerhinweise" value={lowStock.length.toString().padStart(2, '0')} note="2 Stück oder weniger" icon={<CircleAlert size={18} />} alert={lowStock.length > 0} />
       </div>
       <div className="admin-overview-grid">
@@ -257,14 +266,20 @@ function MovementList({ movements }: { movements: StockMovement[] }) {
   return movements.length ? <div className="movement-list">{movements.slice(0, 8).map((movement) => <div key={movement.id}><span className={`movement-icon ${movement.quantity > 0 ? 'movement-in' : 'movement-out'}`}>{movement.quantity > 0 ? <ArrowDownToLine size={15} /> : <ArrowUpRight size={15} />}</span><span><strong>{movement.productName}</strong><small>{movement.kind} · {movement.date}</small></span><b className={movement.quantity > 0 ? 'movement-positive' : ''}>{movement.quantity > 0 ? '+' : ''}{movement.quantity}</b></div>)}</div> : <div className="admin-empty">Noch keine Lagerbewegungen erfasst.</div>
 }
 
-function OrdersSection({ count }: { count: number }) {
-  const orders = [
-    { id: 'MW-2026-0042', customer: 'Anna Leitner', date: '06.11.2026', amount: '€ 148,00', status: 'In Bearbeitung' },
-    { id: 'MW-2026-0041', customer: 'Markus Gruber', date: '04.11.2026', amount: '€ 220,00', status: 'Versendet' },
-    { id: 'MW-2026-0040', customer: 'Clara Huber', date: '02.11.2026', amount: '€ 96,00', status: 'Abgeschlossen' },
-    { id: 'MW-2026-0039', customer: 'Lukas Steiner', date: '31.10.2026', amount: '€ 285,00', status: 'Abgeschlossen' },
-  ]
-  return <><div className="admin-note"><CircleAlert size={17} /><span>Demonstrationsansicht. Bestellungen und Kundendaten sind beispielhaft und stammen nicht aus einem echten Shop.</span></div><section className="admin-panel"><div className="table-toolbar"><span className="eyebrow">4 DEMO-EINTRÄGE · {count} ARTIKEL IM KUNDEN-DEMO-WARENKORB</span></div><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Bestellnummer</th><th>Kunde</th><th>Datum</th><th>Betrag</th><th>Status</th><th></th></tr></thead><tbody>{orders.map((order) => <tr key={order.id}><td className="sku-cell">{order.id}</td><td>{order.customer}</td><td>{order.date}</td><td>{order.amount}</td><td><StatusBadge label={order.status} /></td><td><button className="table-more" aria-label={`Details für ${order.id}`}><MoreHorizontal size={17} /></button></td></tr>)}</tbody></table></div></section></>
+function OrdersSection() {
+  const [selectedOrder, setSelectedOrder] = useState<(typeof demoOrders)[number] | null>(null)
+  return <>
+    <div className="admin-note"><CircleAlert size={17} /><span>Demonstrationsansicht. Bestellungen und Kundendaten sind beispielhaft und stammen nicht aus einem echten Shop.</span></div>
+    <section className="admin-panel"><div className="table-toolbar"><span className="eyebrow">{demoOrders.length} BEISPIELBESTELLUNGEN · LOKALE DEMODATEN</span></div><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Bestellnummer</th><th>Kunde</th><th>Datum</th><th>Betrag</th><th>Status</th><th></th></tr></thead><tbody>{demoOrders.map((order) => <tr key={order.id}><td className="sku-cell">{order.id}</td><td>{order.customer}</td><td>{order.date}</td><td>{order.amount}</td><td><StatusBadge label={order.status} /></td><td><button className="table-more" aria-label={`Details für ${order.id}`} onClick={() => setSelectedOrder(order)}><MoreHorizontal size={17} /></button></td></tr>)}</tbody></table></div></section>
+    {selectedOrder && <div className="modal-backdrop order-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedOrder(null) }}>
+      <section className="order-detail-modal" role="dialog" aria-modal="true" aria-labelledby="order-detail-title">
+        <div className="modal-header"><div><span className="eyebrow">BESTELLUNG · DEMO</span><h2 id="order-detail-title">{selectedOrder.id}</h2></div><button className="icon-button" aria-label="Bestelldetails schließen" onClick={() => setSelectedOrder(null)}><X size={20} /></button></div>
+        <dl className="order-detail-list"><div><dt>Kunde</dt><dd>{selectedOrder.customer}</dd></div><div><dt>Datum</dt><dd>{selectedOrder.date}</dd></div><div><dt>Betrag</dt><dd>{selectedOrder.amount}</dd></div><div><dt>Status</dt><dd><StatusBadge label={selectedOrder.status} /></dd></div></dl>
+        <p className="order-demo-note"><CircleAlert size={16} /> Beispielbestellung ohne reale Zahlungs- oder Versanddaten.</p>
+        <div className="modal-actions"><button className="button button-dark" onClick={() => setSelectedOrder(null)}>Schließen</button></div>
+      </section>
+    </div>}
+  </>
 }
 
 function CustomersSection() {
@@ -273,17 +288,57 @@ function CustomersSection() {
 }
 
 function MediaSection({ products }: { products: Product[] }) {
-  return <div className="media-grid">{products.filter((product) => !product.archived).map((product) => <article key={product.id}><img src={product.image} alt={product.name} /><div><strong>{product.name}</strong><small>{product.category} · {product.sku}</small></div></article>)}</div>
+  const media = products.filter((product) => !product.archived).flatMap((product) =>
+    orderedProductImages(product).map((image, index) => ({ product, image, index })),
+  )
+  return <div className="media-grid">{media.map(({ product, image, index }) => <article key={`${product.id}-${index}-${image.slice(-32)}`}><div className="media-image-wrap"><img src={image} alt={product.name} loading="lazy" />{product.image === image && <span className="media-primary-label"><Star size={12} /> Hauptbild</span>}</div><div><strong>{product.name}</strong><small>{product.category} · {product.sku} · Bild {index + 1}</small></div></article>)}</div>
 }
 
 function ContentSection({ notify }: { notify: (message: string) => void }) {
-  const [title, setTitle] = useState('Die Natur schreibt die schönsten Geschichten.')
-  const [subtitle, setSubtitle] = useState('Entdecken Sie ausgewählte Mineralien, Edelsteine und Schmuckstücke.')
-  return <div className="settings-layout"><section className="admin-panel"><div className="panel-heading"><div><span className="eyebrow">STARTSEITE · HERO</span><h2>Inhalte bearbeiten</h2></div></div><form className="admin-form" onSubmit={(event) => { event.preventDefault(); notify('Website-Inhalte wurden für diese Demo übernommen.') }}><label>Überschrift<input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Unterzeile<textarea rows={3} value={subtitle} onChange={(event) => setSubtitle(event.target.value)} /></label><label>Call-to-Action<input defaultValue="Kollektion entdecken" /></label><button className="button button-dark" type="submit">Änderungen übernehmen <ArrowUpRight size={16} /></button></form></section><aside className="admin-panel content-preview"><span className="eyebrow">VORSCHAU</span><div><span>STEINPLATTE</span><h2>{title}</h2><p>{subtitle}</p><small>Textvorschau · Änderungen bleiben im Demo</small></div></aside></div>
+  const [content, setContent] = useState(readSiteContent)
+  const [error, setError] = useState('')
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const next = Object.fromEntries(Object.entries(content).map(([key, value]) => [key, value.trim()])) as typeof content
+    if (Object.values(next).some((value) => !value)) {
+      setError('Bitte füllen Sie alle Felder aus.')
+      return
+    }
+    if (next.heroTitle.length > 90 || next.heroDescription.length > 180 || next.heroCallToAction.length > 40 || next.introTitle.length > 180 || next.introDescription.length > 180) {
+      setError('Ein oder mehrere Texte überschreiten die erlaubte Länge.')
+      return
+    }
+    try {
+      saveSiteContent(next)
+      setContent(next)
+      setError('')
+      notify('Website-Inhalte wurden gespeichert und auf der Startseite übernommen.')
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Die Inhalte konnten nicht gespeichert werden.')
+    }
+  }
+  return <div className="settings-layout content-settings-layout">
+    <section className="admin-panel content-editor-panel">
+      <div className="panel-heading"><div><span className="eyebrow">STARTSEITE · AKTUELLE TEXTE</span><h2>Inhalte bearbeiten</h2></div></div>
+      <form className="admin-form" onSubmit={submit}>
+        <label>Hero-Überschrift<input required maxLength={90} value={content.heroTitle} onChange={(event) => setContent((current) => ({ ...current, heroTitle: event.target.value }))} /></label>
+        <label>Hero-Text<textarea required maxLength={180} rows={3} value={content.heroDescription} onChange={(event) => setContent((current) => ({ ...current, heroDescription: event.target.value }))} /></label>
+        <label>Buttontext<input required maxLength={40} value={content.heroCallToAction} onChange={(event) => setContent((current) => ({ ...current, heroCallToAction: event.target.value }))} /></label>
+        <label>Einleitung: Überschrift<input required maxLength={180} value={content.introTitle} onChange={(event) => setContent((current) => ({ ...current, introTitle: event.target.value }))} /></label>
+        <label>Einleitung: Text<textarea required maxLength={180} rows={3} value={content.introDescription} onChange={(event) => setContent((current) => ({ ...current, introDescription: event.target.value }))} /></label>
+        {error && <p className="field-error" role="alert">{error}</p>}
+        <button className="button button-dark" type="submit">Änderungen übernehmen <ArrowUpRight size={16} /></button>
+      </form>
+    </section>
+    <aside className="admin-panel content-preview">
+      <span className="eyebrow">VORSCHAU · STARTSEITE</span>
+      <div><span>STEINPLATTE</span><h2>{content.heroTitle}</h2><p>{content.heroDescription}</p><span className="content-preview-cta">{content.heroCallToAction}</span><div className="content-preview-intro"><strong>{content.introTitle}</strong><p>{content.introDescription}</p></div></div>
+    </aside>
+  </div>
 }
 
-function SettingsSection({ notify }: { notify: (message: string) => void }) {
-  return <div className="settings-layout"><section className="admin-panel"><div className="panel-heading"><div><span className="eyebrow">ALLGEMEINES</span><h2>Shop-Einstellungen</h2></div></div><form className="admin-form" onSubmit={(event) => { event.preventDefault(); notify('Einstellungen wurden in der Demo übernommen.') }}><label>Shop-Name<input defaultValue="STEINPLATTE" /></label><label>Interface-Sprache<select defaultValue="de-AT"><option value="de-AT">Deutsch (Österreich)</option></select></label><label>Währung<select defaultValue="EUR"><option value="EUR">Euro (EUR)</option></select></label><label className="check-filter"><input type="checkbox" defaultChecked /> Demo-Modus aktivieren</label><button className="button button-dark" type="submit">Einstellungen speichern</button></form></section><aside className="admin-panel setting-notice"><ShieldCheck size={23} /><h2>Nur eine Demo.</h2><p>Keine echte Anmeldung, keine Zahlungen und keine Verbindung zu einem Backend. Einstellungen werden nicht an einen Server übertragen.</p></aside></div>
+function SettingsSection() {
+  return <div className="settings-layout"><section className="admin-panel"><div className="panel-heading"><div><span className="eyebrow">ALLGEMEINES</span><h2>Shop-Einstellungen</h2></div></div><div className="admin-form read-only-settings"><label>Shop-Name<input value="STEINPLATTE" readOnly /></label><label>Interface-Sprache<input value="Deutsch (Österreich) · de-AT" readOnly /></label><label>Währung<input value="Euro (EUR)" readOnly /></label><label>Modus<input value="Demonstration im Browser" readOnly /></label></div></section><aside className="admin-panel setting-notice"><ShieldCheck size={23} /><h2>Nur eine Demo.</h2><p>Marke, Sprache, Währung und Sitzungsmodus sind in dieser Vorschau fest eingestellt. Einstellungen werden nicht an einen Server übertragen.</p></aside></div>
 }
 
 function UsersSection() {
@@ -297,7 +352,11 @@ function ProductForm({ mode, product, onClose, onSaved }: { mode: 'new' | 'edit'
   const [imageError, setImageError] = useState('')
   const [saveError, setSaveError] = useState('')
   type ProductFormState = Omit<Product, 'tags'> & { tagsInput: string }
-  const [form, setForm] = useState<ProductFormState>(() => product ? { ...product, tagsInput: product.tags.join(', ') } : {
+  const [form, setForm] = useState<ProductFormState>(() => product ? {
+    ...product,
+    images: orderedProductImages(product),
+    tagsInput: product.tags.join(', '),
+  } : {
     id: `mader-${Date.now()}`,
     name: '',
     category: 'Mineralien' as Category,
@@ -319,6 +378,36 @@ function ProductForm({ mode, product, onClose, onSaved }: { mode: 'new' | 'edit'
     availability: 'Auf Lager' as Availability,
   })
   const setField = (field: keyof typeof form, value: string | number | boolean) => setForm((current) => ({ ...current, [field]: value }))
+
+  function moveImage(index: number, direction: -1 | 1) {
+    setForm((current) => {
+      const images = [...(current.images ?? [])]
+      const nextIndex = index + direction
+      if (nextIndex < 0 || nextIndex >= images.length) return current
+      ;[images[index], images[nextIndex]] = [images[nextIndex], images[index]]
+      return { ...current, images }
+    })
+  }
+
+  function selectMainImage(image: string) {
+    setForm((current) => ({
+      ...current,
+      image,
+      images: [image, ...(current.images ?? []).filter((item) => item !== image)],
+    }))
+  }
+
+  function removeImage(index: number) {
+    if (!window.confirm(`Bild ${index + 1} wirklich entfernen?`)) return
+    setForm((current) => {
+      const images = (current.images ?? []).filter((_, imageIndex) => imageIndex !== index)
+      const removedImage = current.images?.[index]
+      const image = current.image === removedImage
+        ? images[0] ?? '/images/bild-folgt.svg'
+        : current.image
+      return { ...current, images, image, imageIsIllustrative: image === '/images/bild-folgt.svg' ? false : current.imageIsIllustrative }
+    })
+  }
 
   function handleImage(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
@@ -363,10 +452,10 @@ function ProductForm({ mode, product, onClose, onSaved }: { mode: 'new' | 'edit'
       const formImages = [...(form.images ?? []), ...images]
       const mainImage = form.images?.length ? form.image : images[0] ?? form.image
       const nextImageChars = currentImageChars
-        + formImages.reduce((total, image) => total + image.length, 0)
-        + (mainImage.startsWith('data:image/') ? mainImage.length : 0)
+        + [...new Set([...formImages, mainImage])]
+          .reduce((total, image) => total + (image.startsWith('data:image/') ? image.length : 0), 0)
       if (nextImageChars > maxStoredImageChars) {
-        setImageError('Für die lokale Demo sind insgesamt höchstens 3,6 MB optimierte Bilddaten vorgesehen.')
+        setImageError('Für die lokale Demo sind insgesamt höchstens 1,8 Millionen Zeichen optimierter Bilddaten vorgesehen.')
         return
       }
       setForm((current) => {
@@ -383,15 +472,26 @@ function ProductForm({ mode, product, onClose, onSaved }: { mode: 'new' | 'edit'
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!form.name.trim()) return
+    if (!form.name.trim()) {
+      setSaveError('Bitte geben Sie einen Produktnamen ein.')
+      return
+    }
     const existing = products.find((item) => item.id === form.id)
     const amount = Number(form.quantity)
     const value = Number(form.price)
-    if (!Number.isFinite(amount) || amount < 0 || !Number.isInteger(amount) || !Number.isFinite(value) || value < 0) return
+    if (!Number.isFinite(amount) || amount < 0 || !Number.isInteger(amount)) {
+      setSaveError('Bitte geben Sie eine ganze, nicht negative Menge ein.')
+      return
+    }
+    if (!Number.isFinite(value) || value < 0) {
+      setSaveError('Bitte geben Sie einen gültigen, nicht negativen Preis ein.')
+      return
+    }
     const { tagsInput, ...productFields } = form
     const sku = form.sku.trim() || `MW-${form.category.slice(0, 2).toLocaleUpperCase('de-AT')}-${Date.now().toString().slice(-5)}`
     const next: Product = {
       ...productFields,
+      images: productFields.images?.length ? productFields.images : undefined,
       name: form.name.trim(),
       category: form.category,
       price: value,
@@ -422,7 +522,25 @@ function ProductForm({ mode, product, onClose, onSaved }: { mode: 'new' | 'edit'
       <label>Produktname<input required autoFocus value={form.name} onChange={(event) => setField('name', event.target.value)} placeholder="z. B. Bergkristall-Spitze" /></label>
       <div className="form-row"><label>Kategorie<select value={form.category} onChange={(event) => setField('category', event.target.value as Category)}>{categories.map((category) => <option key={category}>{category}</option>)}</select></label><label>Verkaufspreis (€)<input required type="number" min="0" step="0.01" value={form.price} onChange={(event) => setField('price', Number(event.target.value))} /></label></div>
       <div className="form-row"><label>Menge<input required type="number" min="0" step="1" value={form.quantity} onChange={(event) => setField('quantity', Number(event.target.value))} /></label><label>Verfügbarkeit<select value={form.availability} onChange={(event) => { if (isAvailability(event.target.value)) setField('availability', event.target.value) }}>{['Auf Lager', 'In Anlieferung', 'Nicht verfügbar'].map((status) => <option key={status}>{status}</option>)}</select></label></div>
-      <div className="upload-field"><span className="form-label">Produktbilder</span><input ref={fileInput} className="sr-only" type="file" accept="image/*" multiple onChange={handleImage} /><div className="upload-preview"><div className="upload-thumbnails">{(form.images?.length ? form.images : [form.image]).map((image, index) => <img key={`${image.slice(0, 40)}-${index}`} src={image} alt={`Produktvorschau ${index + 1}`} />)}</div><div><strong>Bildvorschau</strong><small>Ohne Produktfoto wird „Bild folgt“ angezeigt. Bis zu 8 Bilder · max. 8 MB je Datei</small><button type="button" className="text-button" onClick={() => fileInput.current?.click()}><ImagePlus size={15} /> Bilder auswählen</button></div></div>{imageError && <span className="field-error" role="alert">{imageError}</span>}</div>
+      <div className="upload-field">
+        <span className="form-label">Produktbilder</span>
+        <input ref={fileInput} className="sr-only" type="file" accept="image/*" multiple onChange={handleImage} />
+        <div className="upload-preview"><div className="upload-thumbnails">{(form.images?.length ? form.images : [form.image]).map((image, index) => <img key={`${image.slice(0, 40)}-${index}`} src={image} alt={`Produktvorschau ${index + 1}`} />)}</div><div><strong>Bildvorschau</strong><small>Bis zu 8 Bilder · max. 8 MB je Datei</small><button type="button" className="text-button" onClick={() => fileInput.current?.click()}><ImagePlus size={15} /> Bilder auswählen</button></div></div>
+        {(form.images?.length ?? 0) > 0 && <div className="product-image-manager" role="list" aria-label="Gespeicherte Produktbilder">
+          {form.images?.map((image, index) => <div className={`product-image-item ${form.image === image ? 'is-primary-image' : ''}`} key={`${index}-${image.length}-${image.slice(-24)}`} role="listitem">
+            <img src={image} alt={`Produktbild ${index + 1}`} loading="lazy" />
+            <div className="product-image-actions">
+              <button type="button" className="image-primary-button" aria-label={form.image === image ? `Bild ${index + 1} ist Hauptbild` : `Bild ${index + 1} als Hauptbild wählen`} aria-pressed={form.image === image} onClick={() => selectMainImage(image)}><Star size={14} />{form.image === image ? 'Hauptbild' : 'Als Hauptbild'}</button>
+              <div>
+                <button type="button" aria-label={`Bild ${index + 1} nach oben verschieben`} title="Nach oben" disabled={index === 0} onClick={() => moveImage(index, -1)}><ArrowUp size={15} /></button>
+                <button type="button" aria-label={`Bild ${index + 1} nach unten verschieben`} title="Nach unten" disabled={index === (form.images?.length ?? 0) - 1} onClick={() => moveImage(index, 1)}><ArrowDown size={15} /></button>
+                <button type="button" aria-label={`Bild ${index + 1} entfernen`} title="Bild entfernen" onClick={() => removeImage(index)}><Trash2 size={15} /></button>
+              </div>
+            </div>
+          </div>)}
+        </div>}
+        {imageError && <span className="field-error" role="alert">{imageError}</span>}
+      </div>
       <button className="advanced-toggle" type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>Weitere Produktdetails <ChevronDown className={expanded ? 'chevron-open' : ''} size={16} /></button>
       {expanded && <div className="advanced-fields"><label>Beschreibung<textarea rows={3} value={form.description} onChange={(event) => setField('description', event.target.value)} placeholder="Was macht dieses Stück besonders?" /></label><div className="form-row"><label>Mineralart<input value={form.mineral} onChange={(event) => setField('mineral', event.target.value)} /></label><label>Gewicht<input value={form.weight} onChange={(event) => setField('weight', event.target.value)} placeholder="z. B. 420 g" /></label></div><div className="form-row"><label>Maße<input value={form.dimensions} onChange={(event) => setField('dimensions', event.target.value)} placeholder="z. B. 10 × 6 cm" /></label><label>Farbe<input value={form.color} onChange={(event) => setField('color', event.target.value)} /></label></div><label>SKU<input value={form.sku} onChange={(event) => setField('sku', event.target.value)} placeholder="Wird bei Bedarf automatisch vergeben" /></label><label>Tags <span className="optional-label">mit Beistrich trennen</span><input value={form.tagsInput} onChange={(event) => setField('tagsInput', event.target.value)} placeholder="Unikat, Handarbeit" /></label><label className="check-filter"><input type="checkbox" checked={form.uniquePiece} onChange={(event) => setField('uniquePiece', event.target.checked)} /> Einzelstück / Unikat</label></div>}
       <label className="check-filter publish-check"><input type="checkbox" checked={form.published} onChange={(event) => setField('published', event.target.checked)} /> Produkt veröffentlichen</label>
