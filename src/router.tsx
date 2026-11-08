@@ -1,4 +1,5 @@
-import { createRootRoute, createRoute, createRouter, Outlet, redirect } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, Outlet, redirect, useRouterState } from '@tanstack/react-router'
+import { useLayoutEffect } from 'react'
 import { AdminPage } from './views/AdminPage'
 import { CartPage } from './views/CartPage'
 import { CollectionPage } from './views/CollectionPage'
@@ -7,9 +8,20 @@ import { InfoPage } from './views/InfoPage'
 import { AdminLoginPage } from './views/AdminLoginPage'
 import { ProductPage } from './views/ProductPage'
 import { demoSessionKey } from './demoSession'
+import { applyPageSeo } from './seo'
+import { useStore } from './store'
+
+function RootLayout() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const { products } = useStore()
+
+  useLayoutEffect(() => applyPageSeo(pathname, products), [pathname, products])
+
+  return <Outlet />
+}
 
 const rootRoute = createRootRoute({
-  component: Outlet,
+  component: RootLayout,
   beforeLoad: ({ location }) => {
     if (
       location.pathname.startsWith('/verwaltung')

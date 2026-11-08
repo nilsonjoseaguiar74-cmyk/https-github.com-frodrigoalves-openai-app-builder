@@ -2,8 +2,11 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowRight, Instagram, Menu, Search, ShoppingBag, X } from 'lucide-react'
 import { useRef, useState, type FormEvent, type PropsWithChildren } from 'react'
 import { categories } from '../data'
+import { euro } from '../currency'
+import { orderedProductImages } from '../productImages'
 import { useStore } from '../store'
 import type { Category, Product } from '../types'
+import { ProductQuickView } from './ProductQuickView'
 
 export const categorySlug: Record<Category, string> = {
   Mineralien: 'mineralien',
@@ -13,9 +16,7 @@ export const categorySlug: Record<Category, string> = {
   'Ski & Outdoor': 'ski-outdoor',
 }
 
-export function euro(value: number) {
-  return new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR' }).format(value)
-}
+export { euro }
 
 export function Storefront({ children }: PropsWithChildren) {
   return (
@@ -115,16 +116,33 @@ export function Footer() {
 
 export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
   const { addToCart } = useStore()
+  const [quickViewOpen, setQuickViewOpen] = useState(false)
+  const imageButtonRef = useRef<HTMLButtonElement>(null)
+  const productImages = orderedProductImages(product)
+  const imageFollows = productImages.length === 0
+  const cardImage = imageFollows ? product.image : product.image === '/images/bild-folgt.svg' ? productImages[0] : product.image
   const available = product.quantity > 0 && product.published && !product.archived
-  const imageFollows = product.image === '/images/bild-folgt.svg'
   return (
     <article className={`product-card ${compact ? 'product-card-compact' : ''}`}>
-      <Link to="/produkt/$productId" params={{ productId: product.id }} className="product-card-image">
-        <img src={product.image} alt={imageFollows ? 'Bild folgt' : product.name} loading="lazy" />
-        {!imageFollows && !product.imageIsIllustrative && product.uniquePiece && <span className="product-badge">Unikat</span>}
-        {!available && <span className="product-badge badge-muted">Derzeit nicht verfügbar</span>}
-        <span className="image-arrow" aria-hidden="true"><ArrowRight size={17} /></span>
-      </Link>
+      {imageFollows ? (
+        <Link to="/produkt/$productId" params={{ productId: product.id }} className="product-card-image product-card-image-pending">
+          <img src={cardImage} alt="Produktfoto folgt" loading="lazy" />
+          {!available && <span className="product-badge badge-muted">Derzeit nicht verfügbar</span>}
+        </Link>
+      ) : (
+        <button
+          ref={imageButtonRef}
+          type="button"
+          className="product-card-image product-card-image-quick-view"
+          onClick={() => setQuickViewOpen(true)}
+          aria-label={`${product.name} in der Schnellansicht öffnen`}
+        >
+          <img src={cardImage} alt={product.name} loading="lazy" />
+          {!product.imageIsIllustrative && product.uniquePiece && <span className="product-badge">Unikat</span>}
+          {!available && <span className="product-badge badge-muted">Derzeit nicht verfügbar</span>}
+          <span className="image-arrow" aria-hidden="true"><ArrowRight size={17} /></span>
+        </button>
+      )}
       <div className="product-card-copy">
         <span className="product-category">{product.category}</span>
         <Link to="/produkt/$productId" params={{ productId: product.id }} className="product-title">{product.name}</Link>
@@ -140,6 +158,13 @@ export function ProductCard({ product, compact = false }: { product: Product; co
           </button>
         </div>
       </div>
+      {quickViewOpen && (
+        <ProductQuickView
+          product={product}
+          onClose={() => setQuickViewOpen(false)}
+          returnFocusRef={imageButtonRef}
+        />
+      )}
     </article>
   )
 }
