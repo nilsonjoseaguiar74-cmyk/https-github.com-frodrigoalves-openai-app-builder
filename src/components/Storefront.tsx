@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowRight, Instagram, Menu, Search, ShoppingBag, X } from 'lucide-react'
+import { ArrowRight, Instagram, LogIn, Menu, Search, ShoppingBag, X } from 'lucide-react'
 import { useRef, useState, type FormEvent, type PropsWithChildren } from 'react'
 import { categories } from '../data'
 import { euro } from '../currency'
@@ -106,9 +106,10 @@ export function Footer() {
       </div>
       <div className="footer-bottom">
         <span>© {new Date().getFullYear()} STEINPLATTE</span>
-        <a href="https://steinplatte.site">steinplatte.site</a>
-        <span>Demo-Shop. Abbildungen, Preise und Bestände sind beispielhaft. · <a href="/image-credits.txt">Bildnachweise</a></span>
-        <span className="footer-credit">Entwicklung: Rodrigo Alves · <a href="https://rrv.digital" target="_blank" rel="noreferrer">rrv.digital</a></span>
+        <Link className="footer-admin-link" to="/verwaltung/anmelden" aria-label="Zur Verwaltung anmelden" title="Zur Verwaltung">
+          <LogIn size={16} aria-hidden="true" />
+        </Link>
+        <span className="footer-credit">BY - <a href="https://rrv.digital" target="_blank" rel="noreferrer">rrv.digital</a></span>
       </div>
     </footer>
   )
